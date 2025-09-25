@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clara AI - Health Diagnostics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^18.2.0",
+        "react-dom/client": "https://aistudiocdn.com/react-dom@^18.2.0/client",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^18.2.0/",
+        "react/": "https://aistudiocdn.com/react@^18.2.0/",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+        "@headlessui/react": "https://aistudiocdn.com/@headlessui/react@^2.2.8"
+      }
+    }
+    </script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#3B82F6', // A calmer blue
+                        'primary-dark': '#2563EB',
+                        'secondary': '#10B981', // A modern green
+                        'background': '#F9FAFB', // A very light gray
+                        'surface': '#FFFFFF',
+                        'on-surface': '#1F2937',
+                        'subtle': '#6B7280',
+                        'accent-red': '#EF4444',
+                        'accent-yellow': '#F59E0B',
+                        'accent-green': '#10B981',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out forwards',
+                        'subtle-pulse': 'subtlePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: 0, transform: 'translateY(10px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' },
+                        },
+                        subtlePulse: {
+                           '0%, 100%': { opacity: 0.2 },
+                           '50%': { opacity: 0.4 },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-background text-on-surface">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
