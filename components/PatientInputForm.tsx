@@ -49,9 +49,20 @@ export const PatientInputForm: React.FC<PatientInputFormProps> = ({ patientData,
                     <label htmlFor="notes" className="block text-sm font-medium text-subtle">Unstructured Clinical Notes</label>
                     <textarea id="notes" name="notes" rows={6} value={patientData.notes} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-surface border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm text-on-surface" placeholder="Enter any additional notes, history..."></textarea>
                 </div>
-                <div className="pt-4">
-                    <Button type="submit" className="w-full" disabled={!isFormValid || isLoading}>
-                        {isLoading ? 'Analyzing...' : 'Run AI Analysis'}
+                <div className="pt-6 border-t border-gray-200">
+                    <Button 
+                        type="submit" 
+                        className="w-full bg-blue-600 hover:bg-blue-700 focus:ring-blue-500" 
+                        disabled={!isFormValid || isLoading}
+                    >
+                        {isLoading ? (
+                            <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                Analyzing...
+                            </div>
+                        ) : (
+                            'Run AI Analysis'
+                        )}
                     </Button>
                 </div>
             </form>

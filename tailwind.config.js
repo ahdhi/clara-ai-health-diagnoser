@@ -35,6 +35,8 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
         },
+        'primary': '#3B82F6',
+        'primary-dark': '#2563EB',
         'background': '#F9FAFB',
         'surface': '#FFFFFF',
         'on-surface': '#1F2937',
