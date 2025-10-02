@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DiagnosisResponse, ICD10CodeReference } from '../types';
 import { Card } from './shared/Card';
 import { Spinner } from './shared/Spinner';
@@ -91,6 +91,8 @@ const ICDCodeSection: React.FC<{
 export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({ diagnosis, isLoading, error }) => {
     const [selectedICD10Code, setSelectedICD10Code] = useState<string | null>(null);
     const [isICD10ModalOpen, setIsICD10ModalOpen] = useState(false);
+    const [suggestedCodes, setSuggestedCodes] = useState<ICD10CodeReference[]>([]);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
     const handleICD10CodeClick = (code: string) => {
         setSelectedICD10Code(code);
@@ -103,14 +105,32 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({ diagnosis, isL
     };
 
     // Helper function to suggest ICD-10 codes for a diagnosis if not provided
-    const getSuggestedICD10Codes = (diagnosisText: string): ICD10CodeReference[] => {
-        const suggestions = ICD10Service.suggestCodes(diagnosisText);
-        return suggestions.slice(0, 3).map(suggestion => ({
-            code: suggestion.code,
-            description: suggestion.description,
-            confidence: 'Medium' as const
-        }));
+    const getSuggestedICD10Codes = async (diagnosisText: string): Promise<void> => {
+        setLoadingSuggestions(true);
+        try {
+            const suggestions = await ICD10Service.suggestCodes(diagnosisText);
+            const codes = suggestions.slice(0, 3).map(suggestion => ({
+                code: suggestion.code,
+                description: suggestion.description,
+                confidence: 'Medium' as const
+            }));
+            setSuggestedCodes(codes);
+        } catch (error) {
+            console.error('Failed to get ICD-10 suggestions:', error);
+            setSuggestedCodes([]);
+        } finally {
+            setLoadingSuggestions(false);
+        }
     };
+
+    // Load suggested codes when diagnosis changes
+    useEffect(() => {
+        if (diagnosis?.diagnosis && (!diagnosis.icd10Codes || diagnosis.icd10Codes.length === 0)) {
+            getSuggestedICD10Codes(diagnosis.diagnosis);
+        } else {
+            setSuggestedCodes([]);
+        }
+    }, [diagnosis?.diagnosis]);
 
     if (isLoading) {
         return (
@@ -173,10 +193,10 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({ diagnosis, isL
                     <Section title="Differential Diagnosis">
                         <div className="space-y-4">
                             {diagnosis.differentialDiagnosis.map((d, index) => {
-                                // Use provided ICD codes or suggest them
+                                // Use provided ICD codes or suggested ones from state
                                 const icdCodes = d.icdCodes && d.icdCodes.length > 0 
                                     ? d.icdCodes 
-                                    : getSuggestedICD10Codes(d.diagnosis);
+                                    : suggestedCodes;
 
                                 return (
                                     <div key={index} className="p-4 bg-background rounded-lg border border-gray-200">
@@ -192,11 +212,20 @@ export const DiagnosisResult: React.FC<DiagnosisResultProps> = ({ diagnosis, isL
                                         </p>
 
                                         {/* ICD-10 Codes for this diagnosis */}
-                                        <ICDCodeSection
-                                            title="Related ICD-10 Codes"
-                                            codes={icdCodes}
-                                            onCodeClick={handleICD10CodeClick}
-                                        />
+                                        {loadingSuggestions && (!d.icdCodes || d.icdCodes.length === 0) ? (
+                                            <div className="mt-3">
+                                                <div className="flex items-center text-sm text-gray-500">
+                                                    <Spinner size="sm" />
+                                                    <span className="ml-2">Loading ICD-10 suggestions...</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <ICDCodeSection
+                                                title="Related ICD-10 Codes"
+                                                codes={icdCodes}
+                                                onCodeClick={handleICD10CodeClick}
+                                            />
+                                        )}
                                     </div>
                                 );
                             })}

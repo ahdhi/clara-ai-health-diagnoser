@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { ICD10Code, ICD10Service } from '../../services/icd10Service';
+import { ICD10Code, ICD10Service, ICD10Category } from '../../services/icd10Service';
+import { Spinner } from './Spinner';
 
 // Simple SVG Icons
 const XMarkIcon = ({ className }: { className?: string }) => (
@@ -35,11 +36,69 @@ interface ICD10ModalProps {
 }
 
 export const ICD10Modal: React.FC<ICD10ModalProps> = ({ isOpen, onClose, icdCode }) => {
-  const codeData = icdCode ? ICD10Service.getByCode(icdCode) : null;
-  const relatedCodes = icdCode ? ICD10Service.getRelatedCodes(icdCode) : [];
-  const category = icdCode ? ICD10Service.getCategoryForCode(icdCode) : null;
+  const [codeData, setCodeData] = useState<ICD10Code | null>(null);
+  const [relatedCodes, setRelatedCodes] = useState<ICD10Code[]>([]);
+  const [category, setCategory] = useState<ICD10Category | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!codeData) {
+  useEffect(() => {
+    if (!icdCode || !isOpen) {
+      setCodeData(null);
+      setRelatedCodes([]);
+      setCategory(null);
+      setError(null);
+      return;
+    }
+
+    const loadCodeData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const [code, related, cat] = await Promise.all([
+          ICD10Service.getByCode(icdCode),
+          ICD10Service.getRelatedCodes(icdCode),
+          ICD10Service.getCategoryForCode(icdCode)
+        ]);
+
+        setCodeData(code || null);
+        setRelatedCodes(related);
+        setCategory(cat || null);
+        
+        if (!code) {
+          setError(`The ICD-10 code "${icdCode}" was not found in our database.`);
+        }
+      } catch (err) {
+        console.error('Failed to load ICD-10 code data:', err);
+        setError('Failed to load code information. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCodeData();
+  }, [icdCode, isOpen]);
+
+  if (!isOpen) return null;
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+        <div className="fixed inset-0 bg-black/25" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel className="mx-auto max-w-md rounded-lg bg-white p-6">
+            <div className="flex items-center justify-center space-x-3">
+              <Spinner size="sm" />
+              <span className="text-gray-600">Loading ICD-10 code information...</span>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+    );
+  }
+
+  if (error || !codeData) {
     return (
       <Dialog open={isOpen} onClose={onClose} className="relative z-50">
         <div className="fixed inset-0 bg-black/25" aria-hidden="true" />
@@ -57,8 +116,16 @@ export const ICD10Modal: React.FC<ICD10ModalProps> = ({ isOpen, onClose, icdCode
               </button>
             </div>
             <p className="text-gray-600">
-              The ICD-10 code "{icdCode}" was not found in our database.
+              {error || `The ICD-10 code "${icdCode}" was not found in our database.`}
             </p>
+            <div className="mt-4">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </DialogPanel>
         </div>
       </Dialog>
@@ -113,32 +180,6 @@ export const ICD10Modal: React.FC<ICD10ModalProps> = ({ isOpen, onClose, icdCode
                     <h4 className="font-medium text-blue-900">Category</h4>
                     <p className="text-blue-800 text-sm mt-1">
                       {category.title} ({category.range})
-                    </p>
-                    <p className="text-blue-700 text-sm mt-1">
-                      {category.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Subcategory */}
-            {codeData.subCategory && (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-1">Subcategory</h4>
-                <p className="text-gray-600">{codeData.subCategory}</p>
-              </div>
-            )}
-
-            {/* Clinical Notes */}
-            {codeData.notes && (
-              <div className="bg-amber-50 rounded-lg p-4">
-                <div className="flex items-start space-x-2">
-                  <InformationCircleIcon className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-amber-900">Clinical Notes</h4>
-                    <p className="text-amber-800 text-sm mt-1">
-                      {codeData.notes}
                     </p>
                   </div>
                 </div>
