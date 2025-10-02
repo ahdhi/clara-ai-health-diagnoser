@@ -25,6 +25,28 @@ const diagnosisSchema = {
                     rationale: {
                         type: Type.STRING,
                         description: "Clinical reasoning for including this diagnosis, citing specific patient data."
+                    },
+                    icdCodes: {
+                        type: Type.ARRAY,
+                        description: "Relevant ICD-10 codes for this diagnosis.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                code: {
+                                    type: Type.STRING,
+                                    description: "The ICD-10 code (e.g., 'I10', 'E11.9', 'J45.9')."
+                                },
+                                description: {
+                                    type: Type.STRING,
+                                    description: "Brief description of the ICD-10 code."
+                                },
+                                confidence: {
+                                    type: Type.STRING,
+                                    description: "Confidence level for this code assignment (High, Medium, Low)."
+                                }
+                            },
+                            required: ["code", "description", "confidence"]
+                        }
                     }
                 },
                 required: ["diagnosis", "probability", "rationale"]
@@ -43,6 +65,28 @@ const diagnosisSchema = {
             type: Type.ARRAY,
             description: "A preliminary management plan, including potential treatments, lifestyle recommendations, and referrals.",
             items: { type: Type.STRING }
+        },
+        primaryIcdCodes: {
+            type: Type.ARRAY,
+            description: "Primary ICD-10 codes for the most likely diagnoses.",
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    code: {
+                        type: Type.STRING,
+                        description: "The ICD-10 code (e.g., 'I10', 'E11.9', 'J45.9')."
+                    },
+                    description: {
+                        type: Type.STRING,
+                        description: "Brief description of the ICD-10 code."
+                    },
+                    confidence: {
+                        type: Type.STRING,
+                        description: "Confidence level for this code assignment (High, Medium, Low)."
+                    }
+                },
+                required: ["code", "description", "confidence"]
+            }
         }
     },
     required: ["differentialDiagnosis", "rationale", "recommendedTests", "managementPlan"]
@@ -52,8 +96,14 @@ const buildPrompt = (patientData: PatientData, hasImage: boolean) => {
     let prompt = `
         **Clinical Case Analysis Request**
 
-        You are an expert AI medical diagnostic assistant. Your role is to analyze the provided clinical case information and generate a structured differential diagnosis and management plan. 
-        Analyze the following patient data and provide a comprehensive clinical assessment.
+        You are an expert AI medical diagnostic assistant with comprehensive knowledge of ICD-10 coding. Your role is to analyze the provided clinical case information and generate a structured differential diagnosis, management plan, and appropriate ICD-10 codes.
+
+        **ICD-10 Coding Guidelines:**
+        - Provide accurate ICD-10-CM codes for each diagnosis
+        - Include confidence levels (High, Medium, Low) for code assignments
+        - Focus on the most specific codes available based on the clinical information
+        - Consider both primary diagnoses and relevant secondary conditions
+        - Use unspecified codes when specific details are not available
 
         **Patient Information:**
         - Name: ${patientData.name || 'Not Provided'}
@@ -74,7 +124,27 @@ const buildPrompt = (patientData: PatientData, hasImage: boolean) => {
 
     prompt += `
         **Task:**
-        Based on all the provided information, please generate a response in JSON format according to the specified schema. The analysis should be thorough, evidence-based, and clinically relevant.
+        Based on all the provided information, please generate a response in JSON format according to the specified schema. The analysis should include:
+
+        1. **Differential Diagnosis**: Ranked list of possible diagnoses with appropriate ICD-10 codes
+        2. **Primary ICD-10 Codes**: Most relevant codes for documentation and billing
+        3. **Clinical Rationale**: Evidence-based reasoning for diagnoses
+        4. **Recommended Tests**: Diagnostic workup suggestions
+        5. **Management Plan**: Treatment and follow-up recommendations
+
+        **ICD-10 Code Examples to Reference:**
+        - I10: Essential hypertension
+        - E11.9: Type 2 diabetes without complications
+        - J45.9: Asthma, unspecified
+        - F32.9: Major depressive disorder, single episode, unspecified
+        - R50.9: Fever, unspecified
+        - R51.9: Headache, unspecified
+        - R06.02: Shortness of breath
+        - M54.9: Dorsalgia, unspecified
+        - K21.9: GERD without esophagitis
+        - G43.9: Migraine, unspecified
+
+        Ensure all ICD-10 codes are valid and clinically appropriate for the presented case.
     `;
 
     return prompt.trim();

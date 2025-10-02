@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from './context/AuthContext';
 import { AuthPage } from './components/auth/AuthPage';
-import { DiagnosticsPage } from './pages/DiagnosticsPage';
+import DiagnosticsPage from './pages/DiagnosticsPage';
 import { Spinner } from './components/shared/Spinner';
 
 function App() {

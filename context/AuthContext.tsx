@@ -2,12 +2,13 @@ import React, { createContext, useState, useContext, ReactNode, useEffect, useCa
 import { User } from '../types';
 // FIX: Correctly import from the authService file. This error occurred because the target file was empty.
 import * as authService from '../services/authService';
+import { UserProfile } from '../services/userProfileService';
 
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     login: (email: string, pass: string) => Promise<void>;
-    signUp: (email: string, pass: string) => Promise<void>;
+    signUp: (email: string, pass: string, additionalData?: Partial<UserProfile>) => Promise<void>;
     loginWithGoogle: () => Promise<void>;
     logout: () => Promise<void>;
 }
@@ -32,8 +33,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // User state will be updated via onAuthStateChange
     };
 
-    const signUp = async (email: string, pass: string) => {
-        await authService.signUp(email, pass);
+    const signUp = async (email: string, pass: string, additionalData?: Partial<UserProfile>) => {
+        await authService.signUp(email, pass, additionalData);
         // User state will be updated via onAuthStateChange
     };
     

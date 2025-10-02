@@ -68,8 +68,12 @@ export const getHistory = async (): Promise<DiagnosisHistoryItem[]> => {
         
         if (!currentUser) {
             console.warn("User not authenticated - using fallback storage");
-            return getFallbackHistory();
+            const fallbackHistory = getFallbackHistory();
+            console.log("Returning fallback history:", fallbackHistory);
+            return fallbackHistory;
         }
+
+        console.log("User authenticated, querying Firestore for userId:", currentUser.id);
 
         // Simplified query without orderBy to avoid index requirement
         // We'll sort in JavaScript instead
@@ -79,29 +83,44 @@ export const getHistory = async (): Promise<DiagnosisHistoryItem[]> => {
             limit(50) // Get more documents since we'll sort in JS
         );
 
-        console.log("Fetching history from Firestore...");
+        console.log("Executing Firestore query...");
         const querySnapshot = await getDocs(historyQuery);
-        const history: DiagnosisHistoryItem[] = [];
-
         console.log("Query returned", querySnapshot.size, "documents");
+
+        if (querySnapshot.empty) {
+            console.log("No documents found in Firestore, checking fallback storage");
+            const fallbackHistory = getFallbackHistory();
+            console.log("Fallback history count:", fallbackHistory.length);
+            return fallbackHistory;
+        }
         
         // Create temporary array with timestamps for sorting
         const historyWithTimestamps: (DiagnosisHistoryItem & { timestamp?: Date })[] = [];
         
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            console.log("Document data:", data);
+            console.log("Processing document:", doc.id, data);
+            
+            // Validate required fields
+            if (!data.differentialDiagnosis || !data.patientData) {
+                console.warn("Skipping document with missing required fields:", doc.id);
+                return;
+            }
+            
             historyWithTimestamps.push({
                 id: doc.id,
-                date: data.date,
-                differentialDiagnosis: data.differentialDiagnosis,
-                rationale: data.rationale,
-                recommendedTests: data.recommendedTests,
-                managementPlan: data.managementPlan,
+                date: data.date || new Date().toLocaleString(),
+                differentialDiagnosis: data.differentialDiagnosis || [],
+                rationale: data.rationale || '',
+                recommendedTests: data.recommendedTests || [],
+                managementPlan: data.managementPlan || [],
                 patientData: data.patientData,
-                timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.date),
+                primaryIcdCodes: data.primaryIcdCodes || [],
+                timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.date || Date.now()),
             });
         });
+
+        console.log("Valid documents processed:", historyWithTimestamps.length);
 
         // Sort by timestamp in JavaScript (newest first) and limit to 10
         historyWithTimestamps.sort((a, b) => {
@@ -113,11 +132,22 @@ export const getHistory = async (): Promise<DiagnosisHistoryItem[]> => {
         // Remove timestamp property and convert back to DiagnosisHistoryItem[]
         const sortedHistory: DiagnosisHistoryItem[] = historyWithTimestamps.slice(0, 10).map(({timestamp, ...item}) => item);
         
-        console.log("Returning sorted history from Firestore:", sortedHistory);
+        console.log("Returning sorted history from Firestore:", sortedHistory.length, "items");
         return sortedHistory;
-    } catch (e) {
-        console.error("Failed to fetch diagnosis history from Firestore, using fallback:", e);
-        return getFallbackHistory();
+    } catch (e: any) {
+        console.error("Failed to fetch diagnosis history from Firestore:", e);
+        console.error("Error details:", {
+            name: e.name,
+            message: e.message,
+            code: e.code,
+            stack: e.stack
+        });
+        
+        // Try fallback storage
+        console.log("Attempting to use fallback storage");
+        const fallbackHistory = getFallbackHistory();
+        console.log("Fallback history retrieved:", fallbackHistory.length, "items");
+        return fallbackHistory;
     }
 };
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Login } from './Login';
-import { SignUp } from './SignUp';
+import { EnhancedSignUp } from './EnhancedSignUp';
 import { Footer } from '../shared/Footer';
 
 export const AuthPage: React.FC = () => {
@@ -25,7 +25,7 @@ export const AuthPage: React.FC = () => {
                     </p>
                 </div>
 
-                {isLoginView ? <Login onToggleView={toggleView} /> : <SignUp onToggleView={toggleView} />}
+                {isLoginView ? <Login onToggleView={toggleView} /> : <EnhancedSignUp onToggleView={toggleView} />}
             </main>
             <div className="w-full max-w-md mt-8">
                  <Footer />

@@ -20,10 +20,17 @@ export interface ImageData {
   fileName: string;
 }
 
+export interface ICD10CodeReference {
+  code: string;
+  description: string;
+  confidence?: 'High' | 'Medium' | 'Low';
+}
+
 export interface DifferentialDiagnosis {
   diagnosis: string;
   probability: string;
   rationale: string;
+  icdCodes?: ICD10CodeReference[];
 }
 
 export interface DiagnosisResponse {
@@ -31,6 +38,7 @@ export interface DiagnosisResponse {
   rationale: string;
   recommendedTests: string[];
   managementPlan: string[];
+  primaryIcdCodes?: ICD10CodeReference[];
 }
 
 export interface DiagnosisHistoryItem extends DiagnosisResponse {
