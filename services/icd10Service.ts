@@ -39,31 +39,86 @@ let loadingPromise: Promise<ICD10Database> | null = null;
 const fallbackDatabase: ICD10Database = {
   metadata: {
     version: "2024.1-fallback",
-    totalCodes: 15,
-    totalCategories: 3,
+    totalCodes: 65,
+    totalCategories: 12,
     generatedAt: new Date().toISOString()
   },
   categories: [
     { code: "A00-B99", title: "Certain infectious and parasitic diseases", range: "A00-B99" },
     { code: "C00-D49", title: "Neoplasms", range: "C00-D49" },
-    { code: "L00-L99", title: "Diseases of the skin and subcutaneous tissue", range: "L00-L99" }
+    { code: "E00-E89", title: "Endocrine, nutritional and metabolic diseases", range: "E00-E89" },
+    { code: "F01-F99", title: "Mental and behavioral disorders", range: "F01-F99" },
+    { code: "I00-I99", title: "Diseases of the circulatory system", range: "I00-I99" },
+    { code: "J00-J99", title: "Diseases of the respiratory system", range: "J00-J99" },
+    { code: "K00-K95", title: "Diseases of the digestive system", range: "K00-K95" },
+    { code: "L00-L99", title: "Diseases of the skin and subcutaneous tissue", range: "L00-L99" },
+    { code: "M00-M99", title: "Diseases of the musculoskeletal system and connective tissue", range: "M00-M99" },
+    { code: "R00-R99", title: "Symptoms, signs and abnormal clinical and laboratory findings", range: "R00-R99" },
+    { code: "V00-Y99", title: "External causes of morbidity and mortality", range: "V00-Y99" },
+    { code: "Z00-Z99", title: "Factors influencing health status and contact with health services", range: "Z00-Z99" }
   ],
   codes: [
+    // Infectious diseases
     { code: "A09", description: "Infectious gastroenteritis and colitis, unspecified", category: "Certain infectious and parasitic diseases", categoryCode: "A00-B99" },
     { code: "B34.9", description: "Viral infection, unspecified", category: "Certain infectious and parasitic diseases", categoryCode: "A00-B99" },
+    
+    // Neoplasms
     { code: "C80.1", description: "Malignant neoplasm, unspecified", category: "Neoplasms", categoryCode: "C00-D49" },
     { code: "D49.9", description: "Neoplasm of unspecified behavior of unspecified site", category: "Neoplasms", categoryCode: "C00-D49" },
+    
+    // Endocrine diseases
+    { code: "E11.9", description: "Type 2 diabetes mellitus without complications", category: "Endocrine, nutritional and metabolic diseases", categoryCode: "E00-E89" },
+    { code: "E78.5", description: "Hyperlipidemia, unspecified", category: "Endocrine, nutritional and metabolic diseases", categoryCode: "E00-E89" },
+    
+    // Mental disorders
+    { code: "F32.9", description: "Major depressive disorder, single episode, unspecified", category: "Mental and behavioral disorders", categoryCode: "F01-F99" },
+    { code: "F41.1", description: "Generalized anxiety disorder", category: "Mental and behavioral disorders", categoryCode: "F01-F99" },
+    
+    // Circulatory diseases
+    { code: "I10", description: "Essential (primary) hypertension", category: "Diseases of the circulatory system", categoryCode: "I00-I99" },
+    { code: "I25.10", description: "Atherosclerotic heart disease of native coronary artery without angina pectoris", category: "Diseases of the circulatory system", categoryCode: "I00-I99" },
+    
+    // Respiratory diseases
+    { code: "J06.9", description: "Acute upper respiratory infection, unspecified", category: "Diseases of the respiratory system", categoryCode: "J00-J99" },
+    { code: "J44.1", description: "Chronic obstructive pulmonary disease with acute exacerbation", category: "Diseases of the respiratory system", categoryCode: "J00-J99" },
+    
+    // Digestive diseases
+    { code: "K59.00", description: "Constipation, unspecified", category: "Diseases of the digestive system", categoryCode: "K00-K95" },
+    { code: "K21.9", description: "Gastro-esophageal reflux disease without esophagitis", category: "Diseases of the digestive system", categoryCode: "K00-K95" },
+    
+    // Skin conditions
     { code: "L23.9", description: "Allergic contact dermatitis, unspecified cause", category: "Diseases of the skin and subcutaneous tissue", categoryCode: "L00-L99" },
     { code: "L30.9", description: "Dermatitis, unspecified", category: "Diseases of the skin and subcutaneous tissue", categoryCode: "L00-L99" },
     { code: "L50.9", description: "Urticaria, unspecified", category: "Diseases of the skin and subcutaneous tissue", categoryCode: "L00-L99" },
-    { code: "M25.50", description: "Pain in unspecified joint", category: "Diseases of the musculoskeletal system", categoryCode: "M00-M99" },
-    { code: "R50.9", description: "Fever, unspecified", category: "Symptoms, signs and abnormal clinical findings", categoryCode: "R00-R99" },
-    { code: "R06.02", description: "Shortness of breath", category: "Symptoms, signs and abnormal clinical findings", categoryCode: "R00-R99" },
-    { code: "R51.9", description: "Headache, unspecified", category: "Symptoms, signs and abnormal clinical findings", categoryCode: "R00-R99" },
-    { code: "K59.00", description: "Constipation, unspecified", category: "Diseases of the digestive system", categoryCode: "K00-K95" },
-    { code: "N39.0", description: "Urinary tract infection, site not specified", category: "Diseases of the genitourinary system", categoryCode: "N00-N99" },
-    { code: "J06.9", description: "Acute upper respiratory infection, unspecified", category: "Diseases of the respiratory system", categoryCode: "J00-J99" },
-    { code: "Z00.00", description: "Encounter for general adult medical examination without abnormal findings", category: "Factors influencing health status", categoryCode: "Z00-Z99" }
+    
+    // Musculoskeletal diseases
+    { code: "M25.50", description: "Pain in unspecified joint", category: "Diseases of the musculoskeletal system and connective tissue", categoryCode: "M00-M99" },
+    { code: "M54.5", description: "Low back pain", category: "Diseases of the musculoskeletal system and connective tissue", categoryCode: "M00-M99" },
+    { code: "M79.3", description: "Panniculitis, unspecified", category: "Diseases of the musculoskeletal system and connective tissue", categoryCode: "M00-M99" },
+    
+    // Symptoms and signs
+    { code: "R50.9", description: "Fever, unspecified", category: "Symptoms, signs and abnormal clinical and laboratory findings", categoryCode: "R00-R99" },
+    { code: "R06.02", description: "Shortness of breath", category: "Symptoms, signs and abnormal clinical and laboratory findings", categoryCode: "R00-R99" },
+    { code: "R51.9", description: "Headache, unspecified", category: "Symptoms, signs and abnormal clinical and laboratory findings", categoryCode: "R00-R99" },
+    { code: "R10.9", description: "Unspecified abdominal pain", category: "Symptoms, signs and abnormal clinical and laboratory findings", categoryCode: "R00-R99" },
+    
+    // External causes - Including W codes for injuries
+    { code: "W01.XXXA", description: "Fall on same level from slipping, tripping and stumbling, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W06.XXXA", description: "Fall from bed, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W18.XXXA", description: "Other slipping, tripping and stumbling and falls, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W19.XXXA", description: "Unspecified fall, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W22.XXXA", description: "Striking against or struck by other objects, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W57", description: "Bitten or stung by nonvenomous insect and other nonvenomous arthropods", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W57.XXXA", description: "Bitten or stung by nonvenomous insect and other nonvenomous arthropods, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "W85.XXXA", description: "Exposure to electric transmission lines, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "X58.XXXA", description: "Exposure to other specified factors, initial encounter", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    { code: "Y92.9", description: "Unspecified place or not applicable", category: "External causes of morbidity and mortality", categoryCode: "V00-Y99" },
+    
+    // Factors influencing health status
+    { code: "Z00.00", description: "Encounter for general adult medical examination without abnormal findings", category: "Factors influencing health status and contact with health services", categoryCode: "Z00-Z99" },
+    { code: "Z01.419", description: "Encounter for gynecological examination (general) (routine) without abnormal findings", category: "Factors influencing health status and contact with health services", categoryCode: "Z00-Z99" },
+    { code: "Z51.11", description: "Encounter for antineoplastic chemotherapy", category: "Factors influencing health status and contact with health services", categoryCode: "Z00-Z99" },
+    { code: "Z87.891", description: "Personal history of nicotine dependence", category: "Factors influencing health status and contact with health services", categoryCode: "Z00-Z99" }
   ]
 };
 
