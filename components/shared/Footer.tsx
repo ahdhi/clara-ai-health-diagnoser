@@ -13,10 +13,9 @@ export const Footer: React.FC = () => {
 
                 {/* Product Information */}
                 <div className="mb-4">
-                    <p className="text-sm text-subtle">
-                        A Product of <span className="font-semibold text-primary">Luminatus AI</span> | 
-                        Developed by <span className="font-semibold text-on-surface">Adhi</span>
-                    </p>
+                    <div className="text-sm text-gray-600 text-center">
+                        Advancing Healthcare Through AI
+                    </div>
                 </div>
 
                 {/* Medical Disclaimer */}
@@ -29,7 +28,7 @@ export const Footer: React.FC = () => {
                 {/* Copyright */}
                 <div className="mt-4 pt-2 border-t border-gray-100">
                     <p className="text-xs text-gray-400">
-                        © {new Date().getFullYear()} Luminatus AI. All rights reserved.
+                        © {new Date().getFullYear()} Clara AI. All rights reserved.
                     </p>
                 </div>
             </div>

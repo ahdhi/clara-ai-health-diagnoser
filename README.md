@@ -337,7 +337,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - Regular security audits and updates
 
 ### Reporting Security Issues
-Please report security vulnerabilities to: security@luminatus-ai.com
+Please report security vulnerabilities through our support channels.
 
 ## 🧪 Testing
 
@@ -530,8 +530,8 @@ Advanced computer vision capabilities for:
 ## 👥 Team
 
 ### Core Development Team
-- **Adhi** - Lead Developer & Founder
-- **Luminatus AI Team** - AI Research & Development
+- Lead Developer & Founder
+- AI Research & Development Team
 
 ### Contributors
 We thank all our contributors who have helped make this project better. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
@@ -539,20 +539,19 @@ We thank all our contributors who have helped make this project better. See [CON
 ## 📞 Support & Contact
 
 ### Technical Support
-- **Email**: support@luminatus-ai.com
-- **Documentation**: [docs.clara-ai.com]
-- **Community**: [Discord Server]
+- **Email**: support@clara-ai.com
+- **Documentation**: Available in-app
+- **Community**: User community forums
 
 ### Business Inquiries
-- **Email**: business@luminatus-ai.com
-- **Website**: [www.luminatus-ai.com]
+- **Email**: contact@clara-ai.com
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ### Commercial License
-For commercial use, please contact us at licensing@luminatus-ai.com for enterprise licensing options.
+For commercial use, please contact us at licensing@clara-ai.com for enterprise licensing options.
 
 ## 🙏 Acknowledgments
 
@@ -564,16 +563,13 @@ For commercial use, please contact us at licensing@luminatus-ai.com for enterpri
 
 ## 📈 Stats
 
-![GitHub stars](https://img.shields.io/github/stars/luminatus-ai/clara-ai-health-diagnostics)
-![GitHub forks](https://img.shields.io/github/forks/luminatus-ai/clara-ai-health-diagnostics)
-![GitHub issues](https://img.shields.io/github/issues/luminatus-ai/clara-ai-health-diagnostics)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/luminatus-ai/clara-ai-health-diagnostics)
+---
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by [Luminatus AI](https://luminatus-ai.com)**
+**Made with ❤️ for Healthcare Innovation**
 
 **Clara AI - Advancing Healthcare Through Artificial Intelligence**
 

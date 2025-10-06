@@ -1006,21 +1006,21 @@ Clara AI invites healthcare professionals, institutions, and technology partners
 
 *Advancing Healthcare Through Intelligent Clinical Decision Support*
 
-**Developed by [Adhi](https://github.com/ahdhi) | A Product of [Luminatus AI](https://luminatus-ai.com)**
+**Clara AI - Clinical Learning and Rapid Assessment**
 
 ---
 
 📧 **Contact Information**
-- **Email**: support@luminatus-ai.com
-- **Website**: https://clara-ai.luminatus-ai.com
-- **GitHub**: https://github.com/ahdhi/clara-ai-health-diagnoser
+- **Email**: support@clara-ai.com
+- **Website**: https://clara-ai.com
+- **GitHub**: https://github.com/clara-ai-health-diagnoser
 - **Documentation**: https://docs.clara-ai.com
 
 🏥 **Professional Services**
-- **Clinical Consultation**: medical@luminatus-ai.com
-- **Enterprise Sales**: enterprise@luminatus-ai.com
-- **Academic Partnerships**: academic@luminatus-ai.com
-- **Technical Support**: support@luminatus-ai.com
+- **Clinical Consultation**: medical@clara-ai.com
+- **Enterprise Sales**: enterprise@clara-ai.com
+- **Academic Partnerships**: academic@clara-ai.com
+- **Technical Support**: support@clara-ai.com
 
 </div>
 

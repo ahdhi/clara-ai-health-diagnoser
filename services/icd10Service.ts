@@ -8,7 +8,7 @@ export interface ICD10Code {
   code: string;
   description: string;
   category: string;
-  categoryCode: string;
+  categoryCode?: string;
   shortDescription?: string;
   synonyms?: string[];
   relatedCodes?: string[];
@@ -21,14 +21,14 @@ export interface ICD10Category {
 }
 
 export interface ICD10Database {
-  metadata: {
+  metadata?: {
     version: string;
     totalCodes: number;
     totalCategories: number;
     generatedAt: string;
   };
-  categories: ICD10Category[];
-  codes: ICD10Code[];
+  categories?: ICD10Category[];
+  codes?: ICD10Code[];
 }
 
 // Database cache
@@ -123,7 +123,7 @@ const fallbackDatabase: ICD10Database = {
 };
 
 /**
- * Load the ICD-10 database asynchronously
+ * Load the ICD-10 database asynchronously with retry logic
  */
 async function loadDatabase(): Promise<ICD10Database> {
   if (database) {
@@ -135,28 +135,132 @@ async function loadDatabase(): Promise<ICD10Database> {
   }
 
   loadingPromise = (async () => {
-    try {
-      // Try to load the database dynamically
-      const response = await fetch('/data/icd10-database-compact.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load database: ${response.status}`);
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Loading ICD-10 database (attempt ${attempt}/${maxRetries})...`);
+        
+        // Add timeout for fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
+        const response = await fetch('/data/icd10-database.json', {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        console.log(`Database response received, size: ${response.headers.get('content-length') || 'unknown'} bytes`);
+        
+        const data = await response.json();
+        
+        // Handle both array format (simple) and object format (complex)
+        let codes: ICD10Code[];
+        let metadata: any;
+        let categories: ICD10Category[] = [];
+        
+        if (Array.isArray(data)) {
+          // Simple array format from our new database
+          codes = data;
+          metadata = {
+            version: "2024.1-compact",
+            totalCodes: codes.length,
+            totalCategories: 21,
+            generatedAt: new Date().toISOString()
+          };
+          
+          // Generate categories from codes
+          const categoryMap = new Set<string>();
+          codes.forEach(code => {
+            const firstChar = code.code.charAt(0);
+            categoryMap.add(firstChar);
+          });
+          
+          categories = Array.from(categoryMap).map(char => {
+            const ranges: { [key: string]: string } = {
+              'A': 'A00-B99', 'B': 'A00-B99',
+              'C': 'C00-D49', 'D': 'C00-D49',
+              'E': 'E00-E89', 'F': 'F01-F99',
+              'G': 'G00-G99', 'H': 'H00-H95',
+              'I': 'I00-I99', 'J': 'J00-J99',
+              'K': 'K00-K95', 'L': 'L00-L99',
+              'M': 'M00-M99', 'N': 'N00-N99',
+              'O': 'O00-O9A', 'P': 'P00-P96',
+              'Q': 'Q00-Q99', 'R': 'R00-R99',
+              'S': 'S00-T88', 'T': 'S00-T88',
+              'V': 'V00-Y99', 'W': 'V00-Y99', 'X': 'V00-Y99', 'Y': 'V00-Y99',
+              'Z': 'Z00-Z99'
+            };
+            return {
+              code: ranges[char] || `${char}00-${char}99`,
+              title: `Chapter ${char}`,
+              range: ranges[char] || `${char}00-${char}99`
+            };
+          });
+        } else {
+          // Complex object format
+          codes = data.codes || [];
+          metadata = data.metadata;
+          categories = data.categories || [];
+        }
+        
+        // Validate the data structure
+        if (!codes || !Array.isArray(codes)) {
+          throw new Error('Invalid database format: codes is not an array');
+        }
+        
+        if (codes.length === 0) {
+          throw new Error('Invalid database format: empty codes array');
+        }
+        
+        const formattedData: ICD10Database = {
+          metadata,
+          categories,
+          codes
+        };
+        
+        database = formattedData;
+        console.log(`✅ ICD-10 database loaded successfully: ${codes.length} codes, ${categories.length} categories`);
+        
+        // Verify W57.XXXA is available
+        const testCode = codes.find(code => code.code === 'W57.XXXA');
+        if (testCode) {
+          console.log(`✅ Verified W57.XXXA code is available in main database`);
+        } else {
+          console.warn(`⚠️ W57.XXXA not found in main database, fallback will be used for this code`);
+        }
+        
+        return formattedData;
+        
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`Attempt ${attempt} failed to load ICD-10 database:`, error);
+        
+        if (attempt < maxRetries) {
+          // Wait before retrying (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-      
-      const data = await response.json() as ICD10Database;
-      
-      // Validate the data structure
-      if (!data.codes || !Array.isArray(data.codes) || data.codes.length === 0) {
-        throw new Error('Invalid database structure');
-      }
-      
-      database = data;
-      console.log(`ICD-10 database loaded: ${data.metadata.totalCodes} codes`);
-      return data;
-    } catch (error) {
-      console.warn('Failed to load main ICD-10 database, using fallback:', error);
-      database = fallbackDatabase;
-      return fallbackDatabase;
     }
+    
+    // All attempts failed, use fallback
+    console.error(`❌ Failed to load main ICD-10 database after ${maxRetries} attempts. Last error:`, lastError);
+    console.log(`📋 Using fallback database with ${fallbackDatabase.metadata.totalCodes} codes`);
+    
+    database = fallbackDatabase;
+    return fallbackDatabase;
   })();
 
   return loadingPromise;
@@ -166,23 +270,93 @@ async function loadDatabase(): Promise<ICD10Database> {
 export class ICD10Service {
   
   /**
-   * Get ICD-10 code by code string
+   * Get ICD-10 code by code string with fuzzy matching
    */
   static async getByCode(code: string): Promise<ICD10Code | undefined> {
     const db = await loadDatabase();
-    return db.codes.find(item => item.code === code);
+    
+    // First try exact match
+    let result = db.codes?.find(item => item.code === code);
+    
+    if (!result) {
+      // Try without trailing characters (e.g., W57.XXXA -> W57)
+      const baseCode = code.replace(/\.X+[A-Z]*$/, '');
+      result = db.codes?.find(item => item.code === baseCode);
+    }
+    
+    if (!result) {
+      // Try partial match for similar codes
+      result = db.codes?.find(item => 
+        item.code.startsWith(code.substring(0, 3)) && 
+        item.description.toLowerCase().includes(code.toLowerCase())
+      );
+    }
+    
+    if (!result) {
+      // Check fallback database for missing codes
+      const fallbackResult = fallbackDatabase.codes.find(item => item.code === code);
+      if (fallbackResult) {
+        console.log(`⚠️ ${code} not found in main database, using fallback database`);
+        return fallbackResult;
+      }
+    }
+    
+    if (!result) {
+      console.warn(`⚠️ ${code} not found in main database, fallback will be used for this code`);
+    }
+    
+    return result;
   }
 
   /**
-   * Search ICD-10 codes by description
+   * Search ICD-10 codes by description with improved relevance
    */
   static async searchByDescription(searchTerm: string): Promise<ICD10Code[]> {
     const db = await loadDatabase();
-    const term = searchTerm.toLowerCase();
-    return db.codes.filter(item => 
-      item.description.toLowerCase().includes(term) ||
-      item.shortDescription?.toLowerCase().includes(term)
-    ).slice(0, 50); // Limit results for performance
+    const term = searchTerm.toLowerCase().trim();
+    
+    if (!term) return [];
+    
+    const results: ICD10Code[] = [];
+    const exactMatches: ICD10Code[] = [];
+    const partialMatches: ICD10Code[] = [];
+    
+    // Search through all codes
+    for (const item of db.codes || []) {
+      const description = item.description.toLowerCase();
+      const shortDesc = item.shortDescription?.toLowerCase() || '';
+      
+      // Exact matches get highest priority
+      if (description === term || shortDesc === term) {
+        exactMatches.push(item);
+      }
+      // Partial matches
+      else if (description.includes(term) || shortDesc.includes(term)) {
+        partialMatches.push(item);
+      }
+      
+      // Stop if we have enough results
+      if (exactMatches.length + partialMatches.length >= 100) break;
+    }
+    
+    // Combine results with exact matches first
+    results.push(...exactMatches);
+    results.push(...partialMatches.slice(0, 50 - exactMatches.length));
+    
+    // If no results in main database, try fallback
+    if (results.length === 0) {
+      const fallbackResults = fallbackDatabase.codes.filter(item => 
+        item.description.toLowerCase().includes(term) ||
+        item.shortDescription?.toLowerCase().includes(term)
+      );
+      
+      if (fallbackResults.length > 0) {
+        console.log(`⚠️ No results for "${searchTerm}" in main database, using fallback results`);
+        results.push(...fallbackResults);
+      }
+    }
+    
+    return results.slice(0, 50); // Limit final results
   }
 
   /**
@@ -190,7 +364,7 @@ export class ICD10Service {
    */
   static async getByCategory(category: string): Promise<ICD10Code[]> {
     const db = await loadDatabase();
-    return db.codes.filter(item => 
+    return (db.codes || []).filter(item => 
       item.category === category || item.categoryCode === category
     ).slice(0, 100); // Limit results for performance
   }
@@ -200,7 +374,7 @@ export class ICD10Service {
    */
   static async getCategories(): Promise<ICD10Category[]> {
     const db = await loadDatabase();
-    return db.categories;
+    return db.categories || [];
   }
 
   /**
@@ -211,7 +385,7 @@ export class ICD10Service {
     const item = await this.getByCode(code);
     if (!item) return [];
     
-    return db.codes
+    return (db.codes || [])
       .filter(relatedItem => 
         relatedItem.categoryCode === item.categoryCode && 
         relatedItem.code !== code
@@ -228,7 +402,7 @@ export class ICD10Service {
     const suggestions: ICD10Code[] = [];
     
     // Direct keyword matching
-    for (const item of db.codes) {
+    for (const item of db.codes || []) {
       if (item.description.toLowerCase().includes(text) ||
           item.shortDescription?.toLowerCase().includes(text)) {
         suggestions.push(item);
@@ -240,7 +414,7 @@ export class ICD10Service {
     if (suggestions.length === 0) {
       const words = text.split(' ').filter(word => word.length > 3);
       for (const word of words) {
-        for (const item of db.codes) {
+        for (const item of db.codes || []) {
           if (item.description.toLowerCase().includes(word) ||
               item.shortDescription?.toLowerCase().includes(word)) {
             if (!suggestions.find(s => s.code === item.code)) {
@@ -264,7 +438,7 @@ export class ICD10Service {
     const item = await this.getByCode(code);
     if (!item) return undefined;
     
-    return db.categories.find(cat => cat.code === item.categoryCode);
+    return (db.categories || []).find(cat => cat.code === item.categoryCode);
   }
 
   /**
@@ -272,7 +446,12 @@ export class ICD10Service {
    */
   static async getMetadata(): Promise<ICD10Database['metadata']> {
     const db = await loadDatabase();
-    return db.metadata;
+    return db.metadata || {
+      version: "2024.1-unknown",
+      totalCodes: db.codes?.length || 0,
+      totalCategories: db.categories?.length || 0,
+      generatedAt: new Date().toISOString()
+    };
   }
 
   /**
@@ -285,7 +464,7 @@ export class ICD10Service {
     limit?: number;
   }): Promise<ICD10Code[]> {
     const db = await loadDatabase();
-    let results = db.codes;
+    let results = db.codes || [];
 
     if (options.term) {
       const term = options.term.toLowerCase();
@@ -327,8 +506,126 @@ export class ICD10Service {
     return {
       loaded: true,
       fallback: database === fallbackDatabase,
-      totalCodes: database.metadata.totalCodes
+      totalCodes: database.metadata?.totalCodes || database.codes?.length || 0
     };
+  }
+
+  /**
+   * Get comprehensive database health and status information
+   */
+  static async getDatabaseHealth(): Promise<{
+    isLoaded: boolean;
+    isMainDatabase: boolean;
+    totalCodes: number;
+    version: string;
+    hasW57Code: boolean;
+    loadTime?: string;
+    error?: string;
+  }> {
+    try {
+      const db = await loadDatabase();
+      const hasW57 = db.codes.some(code => code.code === 'W57.XXXA');
+      
+      return {
+        isLoaded: true,
+        isMainDatabase: db !== fallbackDatabase,
+        totalCodes: db.metadata.totalCodes,
+        version: db.metadata.version,
+        hasW57Code: hasW57,
+        loadTime: db.metadata.generatedAt
+      };
+    } catch (error) {
+      return {
+        isLoaded: false,
+        isMainDatabase: false,
+        totalCodes: 0,
+        version: 'unknown',
+        hasW57Code: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Get detailed database coverage analysis
+   */
+  static async getDatabaseCoverage(): Promise<{
+    totalCodes: number;
+    categoryBreakdown: { [key: string]: number };
+    letterCoverage: { [key: string]: number };
+    missingCommonCodes: string[];
+    usingFallback: boolean;
+    coverageScore: number;
+  }> {
+    try {
+      const db = await loadDatabase();
+      const usingFallback = db === fallbackDatabase;
+      
+      // Analyze code coverage by first letter
+      const letterCoverage: { [key: string]: number } = {};
+      const categoryBreakdown: { [key: string]: number } = {};
+      
+      db.codes.forEach(code => {
+        const firstLetter = code.code.charAt(0);
+        letterCoverage[firstLetter] = (letterCoverage[firstLetter] || 0) + 1;
+        
+        // Group similar categories
+        const category = code.category.toLowerCase();
+        if (category.includes('disease') || category.includes('disorder')) {
+          categoryBreakdown['Diseases & Disorders'] = (categoryBreakdown['Diseases & Disorders'] || 0) + 1;
+        } else if (category.includes('injury') || category.includes('fracture') || category.includes('external')) {
+          categoryBreakdown['Injuries & External Causes'] = (categoryBreakdown['Injuries & External Causes'] || 0) + 1;
+        } else if (category.includes('history') || category.includes('factor')) {
+          categoryBreakdown['Health History & Factors'] = (categoryBreakdown['Health History & Factors'] || 0) + 1;
+        } else {
+          categoryBreakdown['Other'] = (categoryBreakdown['Other'] || 0) + 1;
+        }
+      });
+      
+      // Test for common codes that should be present
+      const commonTestCodes = ['I10', 'E11.9', 'F32.9', 'J06.9', 'M54.5', 'R50.9', 'Z00.00'];
+      const missingCommonCodes = [];
+      
+      for (const testCode of commonTestCodes) {
+        const found = db.codes.some(code => code.code === testCode);
+        if (!found) {
+          missingCommonCodes.push(testCode);
+        }
+      }
+      
+      // Calculate coverage score (0-100)
+      const expectedMinimumCodes = 50000; // Expected for comprehensive ICD-10
+      const foundCommonCodes = commonTestCodes.length - missingCommonCodes.length;
+      const codeCountScore = Math.min((db.codes.length / expectedMinimumCodes) * 60, 60);
+      const commonCodeScore = (foundCommonCodes / commonTestCodes.length) * 40;
+      const coverageScore = Math.round(codeCountScore + commonCodeScore);
+      
+      return {
+        totalCodes: db.codes.length,
+        categoryBreakdown,
+        letterCoverage,
+        missingCommonCodes,
+        usingFallback,
+        coverageScore
+      };
+      
+    } catch (error) {
+      return {
+        totalCodes: 0,
+        categoryBreakdown: {},
+        letterCoverage: {},
+        missingCommonCodes: [],
+        usingFallback: true,
+        coverageScore: 0
+      };
+    }
+  }
+
+  /**
+   * Preload the database (useful for app initialization)
+   */
+  static async preloadDatabase(): Promise<void> {
+    await loadDatabase();
   }
 }
 

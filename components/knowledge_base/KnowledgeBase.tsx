@@ -9,7 +9,7 @@ export const KnowledgeBase: React.FC = () => {
         <div className="space-y-6">
             <Card title="Knowledge Base">
                 <p className="text-gray-400">
-                    Access clinical resources to support your diagnostic process. These tools are powered by LuminatusAI developed by Adhi and can provide quick insights into guidelines, drug interactions, and rare diseases.
+                    Access clinical resources to support your diagnostic process. These tools provide quick insights into guidelines, drug interactions, and rare diseases.
                 </p>
             </Card>
             <DrugInteractionChecker />
