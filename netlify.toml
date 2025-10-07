@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  command = "npm run build:netlify"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -36,7 +36,7 @@
 
 # Specific headers for the ICD-10 database
 [[headers]]
-  for = "/data/icd10-database-compact.json"
+  for = "/data/icd10-database.json"
   [headers.values]
     Cache-Control = "public, max-age=86400" # 24 hours
     Content-Type = "application/json"

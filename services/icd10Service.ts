@@ -123,7 +123,7 @@ const fallbackDatabase: ICD10Database = {
 };
 
 /**
- * Load the ICD-10 database asynchronously with retry logic
+ * Load the ICD-10 database asynchronously with retry logic and compression support
  */
 async function loadDatabase(): Promise<ICD10Database> {
   if (database) {
@@ -138,120 +138,146 @@ async function loadDatabase(): Promise<ICD10Database> {
     const maxRetries = 3;
     let lastError: Error | null = null;
 
+    // Try different database sources in order of preference
+    const databaseSources = [
+      '/data/icd10-database.json',
+      './data/icd10-database.json',
+      '/data/icd10-database.json.gz' // Compressed fallback
+    ];
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`Loading ICD-10 database (attempt ${attempt}/${maxRetries})...`);
-        
-        // Add timeout for fetch request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-        
-        const response = await fetch('/data/icd10-database.json', {
-          signal: controller.signal,
-          headers: {
+      for (const dbPath of databaseSources) {
+        try {
+          console.log(`Loading ICD-10 database from ${dbPath} (attempt ${attempt}/${maxRetries})...`);
+          
+          // Add timeout for fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+          
+          const headers: Record<string, string> = {
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'
+          };
+
+          // Add gzip support if trying compressed version
+          if (dbPath.endsWith('.gz')) {
+            headers['Accept-Encoding'] = 'gzip';
           }
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        console.log(`Database response received, size: ${response.headers.get('content-length') || 'unknown'} bytes`);
-        
-        const data = await response.json();
-        
-        // Handle both array format (simple) and object format (complex)
-        let codes: ICD10Code[];
-        let metadata: any;
-        let categories: ICD10Category[] = [];
-        
-        if (Array.isArray(data)) {
-          // Simple array format from our new database
-          codes = data;
-          metadata = {
-            version: "2024.1-compact",
-            totalCodes: codes.length,
-            totalCategories: 21,
-            generatedAt: new Date().toISOString()
+          
+          const response = await fetch(dbPath, {
+            signal: controller.signal,
+            headers
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          console.log(`Database response received from ${dbPath}, size: ${response.headers.get('content-length') || 'unknown'} bytes`);
+          
+          let data;
+          
+          // Handle compressed data
+          if (dbPath.endsWith('.gz')) {
+            const arrayBuffer = await response.arrayBuffer();
+            const decompressed = new TextDecoder().decode(
+              new Uint8Array(arrayBuffer)
+            );
+            data = JSON.parse(decompressed);
+          } else {
+            data = await response.json();
+          }
+          
+          // Handle both array format (simple) and object format (complex)
+          let codes: ICD10Code[];
+          let metadata: any;
+          let categories: ICD10Category[] = [];
+          
+          if (Array.isArray(data)) {
+            // Simple array format from our new database
+            codes = data;
+            metadata = {
+              version: "2026.1-production",
+              totalCodes: codes.length,
+              totalCategories: 26,
+              generatedAt: new Date().toISOString(),
+              source: dbPath
+            };
+            
+            // Generate categories from codes
+            const categoryMap = new Set<string>();
+            codes.forEach(code => {
+              const firstChar = code.code.charAt(0);
+              categoryMap.add(firstChar);
+            });
+            
+            categories = Array.from(categoryMap).map(char => {
+              const ranges: { [key: string]: string } = {
+                'A': 'A00-B99', 'B': 'A00-B99',
+                'C': 'C00-D49', 'D': 'C00-D49',
+                'E': 'E00-E89', 'F': 'F01-F99',
+                'G': 'G00-G99', 'H': 'H00-H95',
+                'I': 'I00-I99', 'J': 'J00-J99',
+                'K': 'K00-K95', 'L': 'L00-L99',
+                'M': 'M00-M99', 'N': 'N00-N99',
+                'O': 'O00-O9A', 'P': 'P00-P96',
+                'Q': 'Q00-Q99', 'R': 'R00-R99',
+                'S': 'S00-T88', 'T': 'S00-T88',
+                'V': 'V00-Y99', 'W': 'V00-Y99', 'X': 'V00-Y99', 'Y': 'V00-Y99',
+                'Z': 'Z00-Z99'
+              };
+              return {
+                code: ranges[char] || `${char}00-${char}99`,
+                title: `Chapter ${char}`,
+                range: ranges[char] || `${char}00-${char}99`
+              };
+            });
+          } else {
+            // Complex object format
+            codes = data.codes || [];
+            metadata = data.metadata;
+            categories = data.categories || [];
+          }
+          
+          // Validate the data structure
+          if (!codes || !Array.isArray(codes)) {
+            throw new Error('Invalid database format: codes is not an array');
+          }
+          
+          if (codes.length === 0) {
+            throw new Error('Invalid database format: empty codes array');
+          }
+          
+          const formattedData: ICD10Database = {
+            metadata,
+            categories,
+            codes
           };
           
-          // Generate categories from codes
-          const categoryMap = new Set<string>();
-          codes.forEach(code => {
-            const firstChar = code.code.charAt(0);
-            categoryMap.add(firstChar);
-          });
+          database = formattedData;
+          console.log(`✅ ICD-10 database loaded successfully from ${dbPath}: ${codes.length} codes, ${categories.length} categories`);
           
-          categories = Array.from(categoryMap).map(char => {
-            const ranges: { [key: string]: string } = {
-              'A': 'A00-B99', 'B': 'A00-B99',
-              'C': 'C00-D49', 'D': 'C00-D49',
-              'E': 'E00-E89', 'F': 'F01-F99',
-              'G': 'G00-G99', 'H': 'H00-H95',
-              'I': 'I00-I99', 'J': 'J00-J99',
-              'K': 'K00-K95', 'L': 'L00-L99',
-              'M': 'M00-M99', 'N': 'N00-N99',
-              'O': 'O00-O9A', 'P': 'P00-P96',
-              'Q': 'Q00-Q99', 'R': 'R00-R99',
-              'S': 'S00-T88', 'T': 'S00-T88',
-              'V': 'V00-Y99', 'W': 'V00-Y99', 'X': 'V00-Y99', 'Y': 'V00-Y99',
-              'Z': 'Z00-Z99'
-            };
-            return {
-              code: ranges[char] || `${char}00-${char}99`,
-              title: `Chapter ${char}`,
-              range: ranges[char] || `${char}00-${char}99`
-            };
-          });
-        } else {
-          // Complex object format
-          codes = data.codes || [];
-          metadata = data.metadata;
-          categories = data.categories || [];
+          // Verify critical codes are available
+          const testCodes = ['W57.XXXA', 'K58.0', 'I10', 'E11.9'];
+          const foundCodes = testCodes.filter(code => codes.find(c => c.code === code));
+          console.log(`✅ Verified ${foundCodes.length}/${testCodes.length} critical codes available`);
+          
+          return formattedData;
+          
+        } catch (error) {
+          lastError = error as Error;
+          console.warn(`Failed to load from ${dbPath}:`, error);
+          continue; // Try next source
         }
-        
-        // Validate the data structure
-        if (!codes || !Array.isArray(codes)) {
-          throw new Error('Invalid database format: codes is not an array');
-        }
-        
-        if (codes.length === 0) {
-          throw new Error('Invalid database format: empty codes array');
-        }
-        
-        const formattedData: ICD10Database = {
-          metadata,
-          categories,
-          codes
-        };
-        
-        database = formattedData;
-        console.log(`✅ ICD-10 database loaded successfully: ${codes.length} codes, ${categories.length} categories`);
-        
-        // Verify W57.XXXA is available
-        const testCode = codes.find(code => code.code === 'W57.XXXA');
-        if (testCode) {
-          console.log(`✅ Verified W57.XXXA code is available in main database`);
-        } else {
-          console.warn(`⚠️ W57.XXXA not found in main database, fallback will be used for this code`);
-        }
-        
-        return formattedData;
-        
-      } catch (error) {
-        lastError = error as Error;
-        console.warn(`Attempt ${attempt} failed to load ICD-10 database:`, error);
-        
-        if (attempt < maxRetries) {
-          // Wait before retrying (exponential backoff)
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
+      }
+      
+      if (attempt < maxRetries) {
+        // Wait before retrying (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
